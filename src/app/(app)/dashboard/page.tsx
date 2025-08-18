@@ -1,0 +1,255 @@
+'use client';
+
+import React, { useState, useRef } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
+import { mergeNotesAction } from './actions';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import {
+  FileText,
+  Image as ImageIcon,
+  Trash2,
+  Loader2,
+  Download,
+  PlusCircle,
+  Sparkles,
+  ClipboardCopy,
+} from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+type Note = {
+  id: number;
+  name: string;
+  type: 'typed' | 'handwritten';
+  content: string; // content is raw text for 'typed', or base64 data URI for 'handwritten'
+};
+
+const initialState = {
+  success: false,
+  message: '',
+};
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="mr-2 h-4 w-4" />
+      )}
+      Merge All Notes
+    </Button>
+  );
+}
+
+export default function DashboardPage() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [typedNote, setTypedNote] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const [state, formAction] = useFormState(mergeNotesAction, initialState);
+
+  React.useEffect(() => {
+    if (state.message) {
+      if (state.success) {
+        toast({
+          title: 'Success!',
+          description: state.message,
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: state.message,
+          variant: 'destructive',
+        });
+      }
+    }
+  }, [state, toast]);
+
+  const handleAddTypedNote = () => {
+    if (typedNote.trim() === '') return;
+    const newNote: Note = {
+      id: Date.now(),
+      name: `Typed Note ${notes.filter((n) => n.type === 'typed').length + 1}`,
+      type: 'typed',
+      content: typedNote,
+    };
+    setNotes([...notes, newNote]);
+    setTypedNote('');
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const newNote: Note = {
+          id: Date.now(),
+          name: file.name,
+          type: 'handwritten',
+          content: e.target?.result as string,
+        };
+        setNotes([...notes, newNote]);
+      };
+      reader.readAsDataURL(file);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveNote = (id: number) => {
+    setNotes(notes.filter((note) => note.id !== id));
+  };
+  
+  const handleDownload = () => {
+    if (!state.data) return;
+    const blob = new Blob([state.data], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "classsync-merged-notes.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  const handleCopy = () => {
+    if (!state.data) return;
+    navigator.clipboard.writeText(state.data).then(() => {
+       toast({
+          title: 'Copied!',
+          description: 'Merged notes have been copied to your clipboard.',
+        });
+    });
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <Card className="lg:col-span-1">
+        <CardHeader>
+          <CardTitle>1. Add Your Notes</CardTitle>
+          <CardDescription>
+            Add typed notes or upload images of handwritten ones.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="typed">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="typed">Typed</TabsTrigger>
+              <TabsTrigger value="handwritten">Handwritten</TabsTrigger>
+            </TabsList>
+            <TabsContent value="typed">
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Paste or type your notes here."
+                  value={typedNote}
+                  onChange={(e) => setTypedNote(e.target.value)}
+                  rows={5}
+                />
+                <Button onClick={handleAddTypedNote} className="w-full">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Typed Note
+                </Button>
+              </div>
+            </TabsContent>
+            <TabsContent value="handwritten">
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                ref={fileInputRef}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-1">
+         <form action={formAction}>
+           <input type="hidden" name="notes" value={JSON.stringify(notes)} />
+            <CardHeader>
+              <CardTitle>2. Review & Merge</CardTitle>
+              <CardDescription>
+                Review your added notes, then click merge. You need at least 2.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+               <ScrollArea className="h-64">
+                <div className="space-y-2 pr-4">
+                    {notes.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 rounded-lg border-dashed border-2 h-full">
+                        <p>Your added notes will appear here.</p>
+                      </div>
+                    ) : (
+                      notes.map((note) => (
+                        <div
+                          key={note.id}
+                          className="flex items-center justify-between rounded-md border p-3"
+                        >
+                          <div className="flex items-center gap-3 truncate">
+                            {note.type === 'typed' ? (
+                              <FileText className="h-5 w-5 flex-shrink-0 text-primary" />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 flex-shrink-0 text-accent" />
+                            )}
+                            <span className="truncate text-sm font-medium">{note.name}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveNote(note.id)}
+                            className="h-8 w-8"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                </div>
+               </ScrollArea>
+            </CardContent>
+            <CardFooter>
+               <SubmitButton />
+            </CardFooter>
+          </form>
+      </Card>
+      
+      <Card className="lg:col-span-1">
+        <CardHeader>
+          <CardTitle>3. Get Your Master Notes</CardTitle>
+           <CardDescription>
+            Your AI-powered merged notes will appear here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-64 w-full">
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded-md border bg-muted p-4 min-h-[16rem]">
+                  {state.data || '...'}
+              </div>
+          </ScrollArea>
+        </CardContent>
+         <CardFooter className="flex gap-2">
+            <Button onClick={handleDownload} disabled={!state.data} className="w-full">
+                <Download className="mr-2 h-4 w-4" /> Download
+            </Button>
+            <Button onClick={handleCopy} variant="outline" disabled={!state.data} className="w-full">
+                <ClipboardCopy className="mr-2 h-4 w-4" /> Copy
+            </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}

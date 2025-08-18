@@ -1,1 +1,5 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/intelligent-note-merging.ts';
+import '@/ai/flows/handwriting-recognition.ts';
