@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import React, { useState, useRef, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { mergeNotesAction } from './actions';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,7 +59,7 @@ export default function DashboardPage() {
   const [typedNote, setTypedNote] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [state, formAction] = useFormState(mergeNotesAction, initialState);
+  const [state, formAction] = useActionState(mergeNotesAction, initialState);
 
   React.useEffect(() => {
     if (state.message) {
