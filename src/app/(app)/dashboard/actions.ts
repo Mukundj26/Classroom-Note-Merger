@@ -22,6 +22,14 @@ type State = {
   data?: string; // This will be the base64 encoded PDF
 };
 
+// Function to remove characters not supported by WinAnsiEncoding
+function cleanTextForPdf(text: string): string {
+  // This is a simplified approach. A more robust solution might involve
+  // more complex regex or a library, but this covers many common cases.
+  return text.replace(/[^\x00-\x7F]/g, ''); // Removes non-ASCII characters
+}
+
+
 export async function mergeNotesAction(
   prevState: State,
   formData: FormData
@@ -104,6 +112,9 @@ export async function mergeNotesAction(
 
     const mergeResult = await intelligentNoteMerging({notes: textNotes});
     const mergedNotes = mergeResult.mergedNotes;
+    
+    // Clean the text before adding to PDF
+    const cleanedMergedNotes = cleanTextForPdf(mergedNotes);
 
     // Generate the visual
     const visualResult = await generateNoteVisual({notes: mergedNotes});
@@ -112,7 +123,7 @@ export async function mergeNotesAction(
 
     // Create a new PDF
     const pdfDoc = await PDFDocument.create();
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     const fontSize = 12;
     const lineHeight = 15;
     
@@ -137,12 +148,12 @@ export async function mergeNotesAction(
     y -= imageDims.height + 70;
 
     // Logic to handle text wrapping and pagination
-    const words = mergedNotes.split(' ');
+    const words = cleanedMergedNotes.split(' ');
     let currentLine = '';
 
     for (const word of words) {
         const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        const testWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+        const testWidth = timesRomanFont.widthOfTextAtSize(testLine, fontSize);
 
         if (testWidth < width - 2 * margin) {
             currentLine = testLine;
@@ -151,7 +162,7 @@ export async function mergeNotesAction(
             page.drawText(currentLine, {
                 x: margin,
                 y,
-                font: helveticaFont,
+                font: timesRomanFont,
                 size: fontSize,
                 color: rgb(0, 0, 0),
             });
@@ -171,7 +182,7 @@ export async function mergeNotesAction(
        page.drawText(currentLine, {
          x: margin,
          y,
-         font: helveticaFont,
+         font: timesRomanFont,
          size: fontSize,
          color: rgb(0, 0, 0),
        });
