@@ -63,19 +63,12 @@ export default function DashboardPage() {
   const [state, formAction] = useActionState(mergeNotesAction, initialState);
 
   React.useEffect(() => {
-    if (state.message) {
-      if (state.success) {
-        toast({
-          title: 'Success!',
-          description: state.message,
-        });
-      } else {
-        toast({
-          title: 'Error',
-          description: state.message,
-          variant: 'destructive',
-        });
-      }
+    if (state.message && !state.success) {
+      toast({
+        title: 'Error',
+        description: state.message,
+        variant: 'destructive',
+      });
     }
   }, [state, toast]);
 
@@ -91,39 +84,52 @@ export default function DashboardPage() {
     setTypedNote('');
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0) {
-      const newNotes: Note[] = [];
-      Array.from(files).forEach((file, index) => {
+    if (!files || files.length === 0) return;
+
+    const fileToNote = (file: File): Promise<Note> => {
+      return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          let fileType: Note['type'] = 'pdf';
-          if (file.type.startsWith('image/')) {
-              fileType = 'handwritten'
+          const content = e.target?.result as string;
+          if (!content) {
+            return reject(new Error('Failed to read file.'));
           }
-
+          const fileType = file.type.startsWith('image/') ? 'handwritten' : 'pdf';
           const newNote: Note = {
-            id: Date.now() + index, // Add index to ensure unique ID when adding multiple files
+            id: Date.now() + Math.random(),
             name: file.name,
             type: fileType,
-            content: e.target?.result as string,
+            content,
           };
-          newNotes.push(newNote);
-
-          // When the last file is read, update the state
-          if (newNotes.length === files.length) {
-            setNotes(prevNotes => [...prevNotes, ...newNotes]);
-          }
+          resolve(newNote);
+        };
+        reader.onerror = (err) => {
+          reject(err);
         };
         reader.readAsDataURL(file);
       });
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    };
+
+    try {
+        const newNotes = await Promise.all(Array.from(files).map(fileToNote));
+        setNotes(prevNotes => [...prevNotes, ...newNotes]);
+    } catch (error) {
+        toast({
+            title: 'Error reading files',
+            description: 'There was a problem processing your files. Please try again.',
+            variant: 'destructive',
+        });
+        console.error(error);
+    }
+
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
+
 
   const handleRemoveNote = (id: number) => {
     setNotes(notes.filter((note) => note.id !== id));
@@ -135,7 +141,7 @@ export default function DashboardPage() {
     a.href = state.data;
     a.download = "classsync-merged-notes.pdf";
     document.body.appendChild(a);
-    a.click();
+a.click();
     document.body.removeChild(a);
   };
   
