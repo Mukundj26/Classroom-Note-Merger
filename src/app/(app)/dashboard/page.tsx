@@ -91,24 +91,33 @@ export default function DashboardPage() {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        let fileType: Note['type'] = 'pdf';
-        if (file.type.startsWith('image/')) {
-            fileType = 'handwritten'
-        }
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const newNotes: Note[] = [];
+      Array.from(files).forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          let fileType: Note['type'] = 'pdf';
+          if (file.type.startsWith('image/')) {
+              fileType = 'handwritten'
+          }
 
-        const newNote: Note = {
-          id: Date.now(),
-          name: file.name,
-          type: fileType,
-          content: e.target?.result as string,
+          const newNote: Note = {
+            id: Date.now() + index, // Add index to ensure unique ID when adding multiple files
+            name: file.name,
+            type: fileType,
+            content: e.target?.result as string,
+          };
+          newNotes.push(newNote);
+
+          // When the last file is read, update the state
+          if (newNotes.length === files.length) {
+            setNotes(prevNotes => [...prevNotes, ...newNotes]);
+          }
         };
-        setNotes([...notes, newNote]);
-      };
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      });
+      
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -171,9 +180,10 @@ export default function DashboardPage() {
                 ref={fileInputRef}
                 className="hidden"
                 id="file-upload"
+                multiple
               />
                <Button onClick={() => fileInputRef.current?.click()} className="w-full" variant="outline">
-                  <FileUp className="mr-2 h-4 w-4" /> Add File (PDF/Image)
+                  <FileUp className="mr-2 h-4 w-4" /> Add File(s) (PDF/Image)
                </Button>
             </div>
         </CardContent>
