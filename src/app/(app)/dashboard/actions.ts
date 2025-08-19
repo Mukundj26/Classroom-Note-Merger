@@ -112,31 +112,70 @@ export async function mergeNotesAction(
 
     // Create a new PDF
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const {width, height} = page.getSize();
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontSize = 12;
+    const lineHeight = 15;
+    
+    // Add first page
+    let page = pdfDoc.addPage();
+    let {width, height} = page.getSize();
+    const margin = 50;
+    let y = height - margin;
 
+    // Embed and draw image on the first page
     const image = await pdfDoc.embedPng(imageBytes);
-    const imageDims = image.scale(0.25); // Scale down the image
-
+    const imageDims = image.scale(0.25);
+    
     // Draw the image at the top of the page
     page.drawImage(image, {
       x: (width - imageDims.width) / 2, // Center the image
-      y: height - imageDims.height - 50,
+      y: y - imageDims.height,
       width: imageDims.width,
       height: imageDims.height,
     });
     
-    // Add the text below the image
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    page.drawText(mergedNotes, {
-      font: helveticaFont,
-      size: 12,
-      x: 50,
-      y: height - imageDims.height - 120,
-      maxWidth: width - 100,
-      lineHeight: 15,
-      color: rgb(0, 0, 0),
-    });
+    y -= imageDims.height + 70;
+
+    // Logic to handle text wrapping and pagination
+    const words = mergedNotes.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const testWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+
+        if (testWidth < width - 2 * margin) {
+            currentLine = testLine;
+        } else {
+            // Draw the line
+            page.drawText(currentLine, {
+                x: margin,
+                y,
+                font: helveticaFont,
+                size: fontSize,
+                color: rgb(0, 0, 0),
+            });
+            y -= lineHeight;
+
+            // Check if new page is needed
+            if (y < margin) {
+                page = pdfDoc.addPage();
+                y = page.getSize().height - margin;
+            }
+            currentLine = word;
+        }
+    }
+    
+    // Draw the last line
+    if(currentLine) {
+       page.drawText(currentLine, {
+         x: margin,
+         y,
+         font: helveticaFont,
+         size: fontSize,
+         color: rgb(0, 0, 0),
+       });
+    }
 
     const pdfBytes = await pdfDoc.save();
     const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
