@@ -14,25 +14,25 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   FileText,
-  Image as ImageIcon,
   Trash2,
   Loader2,
   Download,
   PlusCircle,
   Sparkles,
   ClipboardCopy,
+  FileUp,
+  FileImage,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type Note = {
   id: number;
   name: string;
-  type: 'typed' | 'handwritten';
-  content: string; // content is raw text for 'typed', or base64 data URI for 'handwritten'
+  type: 'typed' | 'handwritten' | 'pdf';
+  content: string; // content is raw text for 'typed', or base64 data URI for 'handwritten'/'pdf'
 };
 
 const initialState = {
@@ -95,10 +95,15 @@ export default function DashboardPage() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
+        let fileType: Note['type'] = 'pdf';
+        if (file.type.startsWith('image/')) {
+            fileType = 'handwritten'
+        }
+
         const newNote: Note = {
           id: Date.now(),
           name: file.name,
-          type: 'handwritten',
+          type: fileType,
           content: e.target?.result as string,
         };
         setNotes([...notes, newNote]);
@@ -143,37 +148,34 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>1. Add Your Notes</CardTitle>
           <CardDescription>
-            Add typed notes or upload images of handwritten ones.
+            Add typed notes or upload PDF/image files.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="typed">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="typed">Typed</TabsTrigger>
-              <TabsTrigger value="handwritten">Handwritten</TabsTrigger>
-            </TabsList>
-            <TabsContent value="typed">
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Paste or type your notes here."
-                  value={typedNote}
-                  onChange={(e) => setTypedNote(e.target.value)}
-                  rows={5}
-                />
-                <Button onClick={handleAddTypedNote} className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Typed Note
-                </Button>
-              </div>
-            </TabsContent>
-            <TabsContent value="handwritten">
+        <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Paste or type your notes here."
+                value={typedNote}
+                onChange={(e) => setTypedNote(e.target.value)}
+                rows={5}
+              />
+              <Button onClick={handleAddTypedNote} className="w-full">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Typed Note
+              </Button>
+            </div>
+            <div>
               <Input
                 type="file"
-                accept="image/*"
+                accept="application/pdf,image/*"
                 onChange={handleFileChange}
                 ref={fileInputRef}
+                className="hidden"
+                id="file-upload"
               />
-            </TabsContent>
-          </Tabs>
+               <Button onClick={() => fileInputRef.current?.click()} className="w-full" variant="outline">
+                  <FileUp className="mr-2 h-4 w-4" /> Add File (PDF/Image)
+               </Button>
+            </div>
         </CardContent>
       </Card>
 
@@ -200,11 +202,9 @@ export default function DashboardPage() {
                           className="flex items-center justify-between rounded-md border p-3"
                         >
                           <div className="flex items-center gap-3 truncate">
-                            {note.type === 'typed' ? (
-                              <FileText className="h-5 w-5 flex-shrink-0 text-primary" />
-                            ) : (
-                              <ImageIcon className="h-5 w-5 flex-shrink-0 text-accent" />
-                            )}
+                            {note.type === 'typed' && <FileText className="h-5 w-5 flex-shrink-0 text-primary" />}
+                            {note.type === 'pdf' && <FileUp className="h-5 w-5 flex-shrink-0 text-primary" />}
+                            {note.type === 'handwritten' && <FileImage className="h-5 w-5 flex-shrink-0 text-accent" />}
                             <span className="truncate text-sm font-medium">{note.name}</span>
                           </div>
                           <Button

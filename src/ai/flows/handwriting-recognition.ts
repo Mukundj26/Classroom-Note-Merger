@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Converts handwritten notes to digital text using OCR.
+ * @fileOverview Converts handwritten notes from an image to digital text using OCR.
  *
  * - handwritingRecognition - A function that handles the handwriting recognition process.
  * - HandwritingRecognitionInput - The input type for the handwritingRecognition function.

@@ -3,11 +3,12 @@
 import { z } from 'zod';
 import { handwritingRecognition } from '@/ai/flows/handwriting-recognition';
 import { intelligentNoteMerging } from '@/ai/flows/intelligent-note-merging';
+import { pdfTextExtraction } from '@/ai/flows/pdf-text-extraction';
 
 const noteSchema = z.object({
   id: z.number(),
   name: z.string(),
-  type: z.enum(['typed', 'handwritten']),
+  type: z.enum(['typed', 'handwritten', 'pdf']),
   content: z.string(),
 });
 
@@ -48,7 +49,17 @@ export async function mergeNotesAction(
       notes.map(async (note) => {
         if (note.type === 'typed') {
           return note.content;
-        } else {
+        } else if (note.type === 'pdf') {
+            try {
+              const result = await pdfTextExtraction({
+                pdfDataUri: note.content,
+              });
+              return result.extractedText;
+            } catch (e) {
+              console.error(`Failed to extract text from PDF for ${note.name}`, e);
+              return `[Could not extract text from PDF: ${note.name}]`;
+            }
+        } else { // 'handwritten'
           try {
             const result = await handwritingRecognition({
               photoDataUri: note.content,
