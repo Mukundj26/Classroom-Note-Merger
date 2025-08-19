@@ -25,6 +25,7 @@ import {
   ClipboardCopy,
   FileUp,
   FileImage,
+  FileCheck2,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -130,24 +131,20 @@ export default function DashboardPage() {
   
   const handleDownload = () => {
     if (!state.data) return;
-    const blob = new Blob([state.data], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "classsync-merged-notes.txt";
+    a.href = state.data;
+    a.download = "classsync-merged-notes.pdf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
   
   const handleCopy = () => {
     if (!state.data) return;
-    navigator.clipboard.writeText(state.data).then(() => {
-       toast({
-          title: 'Copied!',
-          description: 'Merged notes have been copied to your clipboard.',
-        });
+    // We can't copy the PDF, so we'll just show a toast.
+    toast({
+        title: 'Copy not available for PDF',
+        description: 'You can download the PDF using the download button.',
     });
   }
 
@@ -245,15 +242,21 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-64 w-full">
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded-md border bg-muted p-4 min-h-[16rem]">
-                  {state.data || '...'}
-              </div>
-          </ScrollArea>
+           <div className="prose prose-sm max-w-none whitespace-pre-wrap rounded-md border bg-muted p-4 min-h-[16rem] flex items-center justify-center">
+                {state.success && state.data ? (
+                    <div className="text-center">
+                        <FileCheck2 className="h-16 w-16 mx-auto text-primary" />
+                        <p className="mt-4 font-semibold">Your PDF is ready!</p>
+                        <p className="text-muted-foreground text-xs">Use the buttons below to download.</p>
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground">...</p>
+                )}
+            </div>
         </CardContent>
          <CardFooter className="flex gap-2">
             <Button onClick={handleDownload} disabled={!state.data} className="w-full">
-                <Download className="mr-2 h-4 w-4" /> Download
+                <Download className="mr-2 h-4 w-4" /> Download PDF
             </Button>
             <Button onClick={handleCopy} variant="outline" disabled={!state.data} className="w-full">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy
