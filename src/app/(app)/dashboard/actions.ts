@@ -39,6 +39,11 @@ export async function mergeNotesAction(
       return { success: false, message: 'Please add more than one note to merge.' };
     }
 
+    // Check for API Key before making any calls
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'YOUR_API_KEY_HERE') {
+        return { success: false, message: 'Gemini API key is missing. Please add it to your .env file.' };
+    }
+
     const textNotes = await Promise.all(
       notes.map(async (note) => {
         if (note.type === 'typed') {
@@ -69,6 +74,9 @@ export async function mergeNotesAction(
   } catch (error) {
     console.error(error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    if (errorMessage.includes('API key not valid')) {
+        return { success: false, message: 'Your Gemini API key is not valid. Please check it in your .env file.' };
+    }
     return { success: false, message: `Failed to merge notes: ${errorMessage}` };
   }
 }
